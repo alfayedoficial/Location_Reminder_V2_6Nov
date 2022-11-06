@@ -45,7 +45,7 @@ class SelectLocationFragment : BaseFragment() {
         binding.lifecycleOwner = this
 
         setHasOptionsMenu(true)
-        setDisplayHomeAsUpEnabled(true)
+//        setDisplayHomeAsUpEnabled(true)
 
 //        TODO: add the map setup implementation
 //        TODO: zoom to the user location after taking his permission

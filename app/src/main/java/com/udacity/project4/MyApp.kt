@@ -1,6 +1,8 @@
 package com.udacity.project4
 
 import android.app.Application
+import com.alfayedoficial.kotlinutils.KUPreferences
+import com.udacity.project4.authentication.LoginViewModel
 import com.udacity.project4.locationreminders.data.ReminderDataSource
 import com.udacity.project4.locationreminders.data.local.LocalDB
 import com.udacity.project4.locationreminders.data.local.RemindersLocalRepository
@@ -13,12 +15,24 @@ import org.koin.dsl.module
 
 class MyApp : Application() {
 
+    companion object{
+
+        private var _appPreferences: KUPreferences? = null
+        var appPreferences: KUPreferences
+            get() = _appPreferences!!
+            set(value) { _appPreferences = value }
+    }
+
     override fun onCreate() {
         super.onCreate()
 
         /**
          * use Koin Library as a service locator
          */
+        val viewModelModule3 = module {
+            viewModel { LoginViewModel() }
+        }
+
         val myModule = module {
             //Declare a ViewModel - be later inject into Fragment with dedicated injector using by viewModel()
             viewModel {
@@ -41,7 +55,7 @@ class MyApp : Application() {
 
         startKoin {
             androidContext(this@MyApp)
-            modules(listOf(myModule))
+            modules(listOf(myModule , viewModelModule3))
         }
     }
 }
