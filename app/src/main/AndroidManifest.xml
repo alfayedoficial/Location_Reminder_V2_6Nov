@@ -35,7 +35,16 @@
                 -->
 
         <activity android:name=".locationreminders.RemindersActivity"
-            android:exported="false"/>
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+
+        </activity>
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"
@@ -44,7 +53,8 @@
         <receiver
             android:name=".locationreminders.geofence.GeofenceBroadcastReceiver"
             android:enabled="true"
-            android:exported="true" />
+            android:exported="true"
+            android:permission="TODO" />
         <service
             android:name=".locationreminders.geofence.GeofenceTransitionsJobIntentService"
             android:exported="true"
@@ -54,11 +64,6 @@
             android:launchMode="singleTask"
             android:exported="true">
 
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
 
         </activity>
 

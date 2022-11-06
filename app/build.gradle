@@ -9,7 +9,16 @@ plugins {
 }
 
 android {
+    signingConfigs {
+        debug {
+            storeFile file('/Users/alial-shahatali/StudioProjects/udacity/LocationReminder/location_key')
+            storePassword '123456789'
+            keyPassword '123456789'
+            keyAlias 'key0'
+        }
+    }
     compileSdk 32
+
 
     defaultConfig {
         applicationId "com.udacity.project4"
@@ -17,6 +26,7 @@ android {
         targetSdk 32
         versionCode 1
         versionName "1.0"
+        signingConfig signingConfigs.debug
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -28,8 +38,15 @@ android {
 
     buildTypes {
         release {
+            signingConfig signingConfigs.debug
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+
+        debug {
+            manifestPlaceholders = [crashlyticsEnabled: false]
+            minifyEnabled true
+            signingConfig signingConfigs.debug
         }
     }
     compileOptions {
