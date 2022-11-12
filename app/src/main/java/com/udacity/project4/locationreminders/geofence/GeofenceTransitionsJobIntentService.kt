@@ -7,13 +7,13 @@ import androidx.core.app.JobIntentService
 import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofenceStatusCodes
 import com.google.android.gms.location.GeofencingEvent
+import com.google.gson.Gson
 import com.udacity.project4.R
 import com.udacity.project4.locationreminders.data.ReminderDataSource
 import com.udacity.project4.locationreminders.data.dto.ReminderDTO
 import com.udacity.project4.locationreminders.data.dto.Result
 import com.udacity.project4.locationreminders.data.local.RemindersLocalRepository
 import com.udacity.project4.locationreminders.reminderslist.ReminderDataItem
-import com.udacity.project4.utils.AppConstant.ACTION_GEOFENCE_EVENT
 import com.udacity.project4.utils.AppConstant.TAG
 import com.udacity.project4.utils.sendNotificationUtils
 import kotlinx.coroutines.*
@@ -35,21 +35,31 @@ class GeofenceTransitionsJobIntentService : JobIntentService(), CoroutineScope {
     }
 
     override fun onHandleWork(intent: Intent) {
-        if (intent.action == ACTION_GEOFENCE_EVENT) {
-            val geofencingEvent = GeofencingEvent.fromIntent(intent)
-
-            if (geofencingEvent.hasError()) {
-                val errorMessage = errorMessage(this, geofencingEvent.errorCode)
-                Log.e(TAG, errorMessage)
-                return
-            }
-
-            if (geofencingEvent.geofenceTransition == Geofence.GEOFENCE_TRANSITION_ENTER) {
-                sendNotification(geofencingEvent.triggeringGeofences)
-                Log.d(TAG, "Geofences found")
-            }
-
+        val geofencingEvent = GeofencingEvent.fromIntent(intent)
+        if (geofencingEvent.hasError()) {
+            val errorMessage = GeofenceStatusCodes.getStatusCodeString(geofencingEvent.errorCode)
+            Log.e(TAG, errorMessage)
+            return
         }
+
+        // Get the transition type.
+        val geofenceTransition = geofencingEvent.geofenceTransition
+
+        // Test that the reported transition was of interest.
+        if (geofenceTransition == Geofence.GEOFENCE_TRANSITION_ENTER || geofenceTransition == Geofence.GEOFENCE_TRANSITION_EXIT) {
+
+            // Get the geofences that were triggered. A single event can trigger
+            // multiple geofences.
+            val triggeringGeofences = geofencingEvent.triggeringGeofences
+
+            // Get the transition details as a String.
+            Log.i(TAG, Gson().toJson(triggeringGeofences))
+            sendNotification(triggeringGeofences)
+        } else {
+            // Log the error.
+            Log.d(TAG, "Geofences found")
+        }
+
     }
 
     private fun sendNotification(geofences: List<Geofence>) {
@@ -66,12 +76,12 @@ class GeofenceTransitionsJobIntentService : JobIntentService(), CoroutineScope {
                     //send a notification to the user with the reminder details
                     sendNotificationUtils(
                         this@GeofenceTransitionsJobIntentService, ReminderDataItem(
-                            reminderDTO.title,
-                            reminderDTO.description,
-                            reminderDTO.location,
-                            reminderDTO.latitude,
-                            reminderDTO.longitude,
-                            reminderDTO.id
+                            reminderDTO?.title,
+                            reminderDTO?.description,
+                            reminderDTO?.location,
+                            reminderDTO?.latitude,
+                            reminderDTO?.longitude,
+                            reminderDTO?.id?:""
                         )
                     )
                 }

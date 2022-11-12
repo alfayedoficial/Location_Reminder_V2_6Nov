@@ -43,6 +43,21 @@
     <string name="unknown_geofence_error">Unknown error: the Geofence service is not available now</string>
 
     <string name="my_location">My Location</string>
+
+
+    <string name="enable_location">Enable Location</string>
+    <string name="message_location">Your location is disabled. Please enable it in settings.</string>
+    <string name="locationSettings">Location Settings</string>
     <string name="location_permission">Location Permission</string>
+    <string name="location_permission_message">Location permission is needed to get your current location.</string>
+    <string name="location_permission_denied">Location permission denied</string>
+    <string name="cancel">Cancel</string>
+    <string name="_ok">OK</string>
+    <string name="requrid_location">Please choose your location on the map</string>
+    <string name="Please_Enable">Please Enable Location Service</string>
+    <string name="try_again">try again</string>
+
+    <string name="title">reminder title …</string>
+    <string name="description">description</string>
 
 </resources>

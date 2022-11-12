@@ -25,3 +25,6 @@ data class ReminderDTO(
     @ColumnInfo(name = "longitude") var longitude: Double?,
     @PrimaryKey @ColumnInfo(name = "entry_id") val id: String = UUID.randomUUID().toString()
 )
+
+typealias Reminders = List<ReminderDTO>
+typealias RemindersMutableList = MutableList<ReminderDTO>

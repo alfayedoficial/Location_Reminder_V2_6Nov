@@ -42,7 +42,7 @@ class AuthenticationActivity : AppCompatActivity() {
 
     private fun setUpViewModelStateObservers() {
         mViewModel.firebaseUserState.observe(this) {
-            if (it?.displayName != null) {
+            if (it != null) {
                 appPreferences.setValue(USER, it)
                 kuSnackBarError("Welcome ${it.displayName}" , kuRes.getColor(R.color.white) ,  kuRes.getColor(R.color.TemplateGreen ))
                 kuClearIntentClass(RemindersActivity::class.java , Pair(USER , it))

@@ -5,11 +5,12 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.firebase.ui.auth.AuthUI
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 
 class LoginViewModel : ViewModel() {
 
-    private val _firebaseUser = MutableLiveData<FirebaseUser?>()
+    private val _firebaseUser = MutableLiveData(FirebaseAuth.getInstance().currentUser)
     val firebaseUserState: LiveData<FirebaseUser?> = _firebaseUser
 
     fun setFirebaseAuth(currentUser : FirebaseUser?){
