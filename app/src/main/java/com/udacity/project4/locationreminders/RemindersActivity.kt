@@ -56,7 +56,7 @@ class RemindersActivity : AppCompatActivity() {
 
     // Mark -*- handle Permissions
     // NeedsPermission method is called when the user has not granted the permission
-    @NeedsPermission(android.Manifest.permission.ACCESS_FINE_LOCATION , android.Manifest.permission.ACCESS_COARSE_LOCATION)
+    @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION , Manifest.permission.ACCESS_COARSE_LOCATION)
     fun setupLocationService(){
         if (isLocationEnabled()) {
             // Do the task needing access to the location
@@ -85,7 +85,7 @@ class RemindersActivity : AppCompatActivity() {
     }
 
     // OnShowRationale method is called if the user has denied the permission before
-    @OnShowRationale(android.Manifest.permission.ACCESS_FINE_LOCATION , android.Manifest.permission.ACCESS_COARSE_LOCATION)
+    @OnShowRationale(Manifest.permission.ACCESS_FINE_LOCATION , Manifest.permission.ACCESS_COARSE_LOCATION)
     fun onRationaleAskLocation(request : PermissionRequest) {
         // Show the rationale
         MaterialAlertDialogBuilder(this)
@@ -104,13 +104,13 @@ class RemindersActivity : AppCompatActivity() {
     }
 
     // OnPermissionDenied method is called if the user has denied the permission
-    @OnPermissionDenied(android.Manifest.permission.ACCESS_FINE_LOCATION , android.Manifest.permission.ACCESS_COARSE_LOCATION)
+    @OnPermissionDenied(Manifest.permission.ACCESS_FINE_LOCATION , Manifest.permission.ACCESS_COARSE_LOCATION)
     fun onDeniedAskLocation() {
         kuToast(getString(R.string.location_permission_denied))
     }
 
     // OnNeverAskAgain method is called if the user has denied the permission and checked "Never ask again"
-    @OnNeverAskAgain(android.Manifest.permission.ACCESS_FINE_LOCATION , android.Manifest.permission.ACCESS_COARSE_LOCATION)
+    @OnNeverAskAgain(Manifest.permission.ACCESS_FINE_LOCATION , Manifest.permission.ACCESS_COARSE_LOCATION)
     fun onNeverAskLocation() {
         val onApplicationSettings = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
         onApplicationSettings.data = Uri.parse("package:${packageName}")

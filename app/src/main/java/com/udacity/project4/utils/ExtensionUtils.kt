@@ -2,8 +2,10 @@ package com.udacity.project4.utils
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.databinding.BindingAdapter
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.MutableLiveData
@@ -54,4 +56,7 @@ fun newIntent(context: Context, reminderDataItem: ReminderDataItem): Intent {
     intent.putExtra(EXTRA_ReminderDataItem, reminderDataItem)
     return intent
 }
+
+fun Context.checkPermissionUtils(permission: String) = PackageManager.PERMISSION_GRANTED == ActivityCompat.checkSelfPermission(this, permission)
+
 

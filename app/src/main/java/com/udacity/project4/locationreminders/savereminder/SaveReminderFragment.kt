@@ -34,6 +34,7 @@ import com.udacity.project4.locationreminders.geofence.GeofenceBroadcastReceiver
 import com.udacity.project4.locationreminders.reminderslist.ReminderDataItem
 import com.udacity.project4.locationreminders.setupLocationServiceWithPermissionCheck
 import com.udacity.project4.utils.AppConstant.GEOFENCE_RADIUS_IN_METERS
+import com.udacity.project4.utils.checkPermissionUtils
 import com.udacity.project4.utils.setDisplayHomeAsUpEnabled
 import org.koin.android.ext.android.inject
 import permissions.dispatcher.*
@@ -61,7 +62,7 @@ class SaveReminderFragment : BaseFragment() {
     }
 
     private val setupLocationServiceResult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        setupLocationServiceWithPermissionCheck()
+        setupBackgroundLocationServiceWithPermissionCheck()
     }
 
 
@@ -83,7 +84,6 @@ class SaveReminderFragment : BaseFragment() {
             fragment = this@SaveReminderFragment
         }
         setDisplayHomeAsUpEnabled(true)
-        setupLocationServiceWithPermissionCheck()
     }
 
     fun selectLocation() {
@@ -120,7 +120,7 @@ class SaveReminderFragment : BaseFragment() {
                 }
 
             }else{
-                setupLocationServiceWithPermissionCheck()
+                setupBackgroundLocationServiceWithPermissionCheck()
                 (activity as RemindersActivity).setupLocationServiceWithPermissionCheck()
             }
         }
@@ -129,17 +129,16 @@ class SaveReminderFragment : BaseFragment() {
     // Mark -*- handle Permissions
 
     private fun checkLocationPermissions(): Boolean {
-        return checkPermission(Manifest.permission.ACCESS_FINE_LOCATION) && checkPermission(Manifest.permission.ACCESS_FINE_LOCATION) &&
-        return checkPermission(Manifest.permission.ACCESS_FINE_LOCATION) && checkPermission(Manifest.permission.ACCESS_FINE_LOCATION) &&
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) { checkPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) } else  true
+        return requireContext().checkPermissionUtils(Manifest.permission.ACCESS_FINE_LOCATION) && requireContext().checkPermissionUtils(Manifest.permission.ACCESS_FINE_LOCATION) &&
+        return requireContext().checkPermissionUtils(Manifest.permission.ACCESS_FINE_LOCATION) && requireContext().checkPermissionUtils(Manifest.permission.ACCESS_FINE_LOCATION) &&
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) { requireContext().checkPermissionUtils(Manifest.permission.ACCESS_BACKGROUND_LOCATION) } else  true
     }
 
-    private fun checkPermission(permission: String) = PackageManager.PERMISSION_GRANTED == ActivityCompat.checkSelfPermission(requireContext(), permission)
     // NeedsPermission method is called when the user has not granted the permission
     @RequiresApi(Build.VERSION_CODES.Q)
     @NeedsPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-    fun setupLocationService(){
-        if (checkPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
+    fun setupBackgroundLocationService(){
+        if (requireContext().checkPermissionUtils(Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
             // Do the task needing access to the location
             return
         }else{
@@ -219,7 +218,7 @@ class SaveReminderFragment : BaseFragment() {
                 reminderDataItem.longitude!!,
                 GEOFENCE_RADIUS_IN_METERS
             )
-            .setExpirationDuration(500)
+            .setExpirationDuration(Geofence.NEVER_EXPIRE)
             .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER or Geofence.GEOFENCE_TRANSITION_EXIT)
             .build()
 
@@ -230,8 +229,7 @@ class SaveReminderFragment : BaseFragment() {
             .build()
 
 
-        if (!checkPermission(Manifest.permission.ACCESS_FINE_LOCATION) || !checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)){
-            setupLocationServiceWithPermissionCheck()
+        if (!requireContext().checkPermissionUtils(Manifest.permission.ACCESS_FINE_LOCATION) || !requireContext().checkPermissionUtils(Manifest.permission.ACCESS_FINE_LOCATION)){
             (activity as RemindersActivity).setupLocationServiceWithPermissionCheck()
             return
         }

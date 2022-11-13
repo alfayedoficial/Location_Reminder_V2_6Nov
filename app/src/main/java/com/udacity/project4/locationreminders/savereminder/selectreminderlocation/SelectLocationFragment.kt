@@ -3,12 +3,16 @@ package com.udacity.project4.locationreminders.savereminder.selectreminderlocati
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.location.Location
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import android.view.*
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -16,24 +20,32 @@ import androidx.core.view.MenuHost
 import androidx.core.view.MenuProvider
 import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.Lifecycle
+import com.alfayedoficial.kotlinutils.kuToast
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.*
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.udacity.project4.R
 import com.udacity.project4.base.BaseFragment
 import com.udacity.project4.base.NavigationCommand
 import com.udacity.project4.databinding.FragmentSelectLocationBinding
+import com.udacity.project4.locationreminders.RemindersActivity
 import com.udacity.project4.locationreminders.savereminder.SaveReminderViewModel
+import com.udacity.project4.locationreminders.setupLocationServiceWithPermissionCheck
 import com.udacity.project4.utils.AppConstant.DEFAULT_ZOOM_LEVEL
 import com.udacity.project4.utils.AppConstant.PERMISSION_CODE_LOCATION_REQUEST
 import com.udacity.project4.utils.AppConstant.TAG
+import com.udacity.project4.utils.LocationUtil.isLocationEnabled
+import com.udacity.project4.utils.checkPermissionUtils
 import com.udacity.project4.utils.setDisplayHomeAsUpEnabled
 import org.koin.android.ext.android.inject
+import permissions.dispatcher.*
 import java.util.*
 
+@RuntimePermissions
 class SelectLocationFragment : BaseFragment() {
 
     //Use Koin to get the view model of the SaveReminder
@@ -46,6 +58,11 @@ class SelectLocationFragment : BaseFragment() {
     private val fusedLocationProviderClient by lazy {
         LocationServices.getFusedLocationProviderClient(requireActivity())
     }
+
+    private val setupLocationServiceResult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        setupLocationServiceWithPermissionCheck()
+    }
+
 
     @SuppressLint("MissingPermission")
     val callback = OnMapReadyCallback { googleMap ->
@@ -63,12 +80,7 @@ class SelectLocationFragment : BaseFragment() {
         setPoiClick(map)
         setMapLongClick(map)
 
-
-        if (locationPermissionGranted()) {
-            getUserLocation()
-        } else {
-            requestLocationPermission()
-        }
+        getUserLocation()
     }
 
     override fun onCreateView(
@@ -83,17 +95,16 @@ class SelectLocationFragment : BaseFragment() {
         setHasOptionsMenu(true)
         setDisplayHomeAsUpEnabled(true)
 
-        val mapFragment = childFragmentManager.findFragmentById(R.id.mapFragment) as SupportMapFragment
-        mapFragment.getMapAsync(callback)
-
-        onLocationSelected()
-
-        setMenu()
+        setupLocationServiceWithPermissionCheck()
 
         return binding.root
     }
 
     fun onLocationSelected() {
+        if (!requireContext().checkPermissionUtils(Manifest.permission.ACCESS_FINE_LOCATION) || !requireContext().checkPermissionUtils(Manifest.permission.ACCESS_FINE_LOCATION)){
+            setupLocationServiceWithPermissionCheck()
+            return
+        }
         marker?.let { marker ->
             mViewModel.latitude.value = marker.position.latitude
             mViewModel.longitude.value = marker.position.longitude
@@ -103,48 +114,6 @@ class SelectLocationFragment : BaseFragment() {
     }
 
 
-    private fun locationPermissionGranted(): Boolean {
-        return ContextCompat.checkSelfPermission(requireActivity(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-    }
-
-    private fun requestLocationPermission() {
-        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-            && ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            map.isMyLocationEnabled = true
-        } else {
-            this.requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSION_CODE_LOCATION_REQUEST)
-        }
-    }
-
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (grantResults.isNotEmpty() && (grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
-            getUserLocation()
-        } else {
-            showRationale()
-        }
-    }
-
-    private fun showRationale() {
-        if (ActivityCompat.shouldShowRequestPermissionRationale(requireActivity(), Manifest.permission.ACCESS_FINE_LOCATION)) {
-            AlertDialog.Builder(requireActivity())
-                .setTitle(R.string.location_permission)
-                .setMessage(R.string.permission_denied_explanation)
-                .setPositiveButton("OK") { _, _ ->
-                    requestLocationPermission()
-                }
-                .create()
-                .show()
-
-        } else {
-            requestLocationPermission()
-        }
-    }
 
     private fun setPoiClick(map: GoogleMap) {
         map.setOnPoiClickListener { poi ->
@@ -262,6 +231,87 @@ class SelectLocationFragment : BaseFragment() {
 
         }, viewLifecycleOwner, Lifecycle.State.RESUMED)
     }
+
+    // Mark -*- handle Permissions
+    // NeedsPermission method is called when the user has not granted the permission
+    @NeedsPermission(Manifest.permission.ACCESS_FINE_LOCATION , Manifest.permission.ACCESS_COARSE_LOCATION)
+    fun setupLocationService(){
+        if (requireContext().isLocationEnabled()) {
+            // Do the task needing access to the location
+            val mapFragment = childFragmentManager.findFragmentById(R.id.mapFragment) as SupportMapFragment
+            mapFragment.getMapAsync(callback)
+
+            onLocationSelected()
+
+            setMenu()
+
+//            getUserLocation()
+        }else{
+            // Show dialog to enable location
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(getString(R.string.enable_location))
+                .setMessage(getString(R.string.message_location))
+                .setPositiveButton(getString(R.string.locationSettings)) { dialog, _ ->
+                    // Open location settings
+                    onSettingScreen()
+                    dialog.dismiss()
+                }
+                .setNegativeButton(getString(R.string.cancel)) { dialog, _ ->
+                    // Do nothing
+                    dialog.dismiss()
+                }
+                .show()
+        }
+
+    }
+
+    private fun onSettingScreen() {
+        setupLocationServiceResult.launch(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+    }
+
+    // OnShowRationale method is called if the user has denied the permission before
+    @OnShowRationale(Manifest.permission.ACCESS_FINE_LOCATION , Manifest.permission.ACCESS_COARSE_LOCATION)
+    fun onRationaleAskLocation(request : PermissionRequest) {
+        // Show the rationale
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(getString(R.string.location_permission))
+            .setMessage(getString(R.string.location_permission_message))
+            .setPositiveButton(getString(R.string._ok)) { dialog, _ ->
+                request.proceed()
+                dialog.dismiss()
+            }
+            .setNegativeButton(getString(R.string.cancel)) { dialog, _ ->
+                // Do nothing
+                request.cancel()
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    // OnPermissionDenied method is called if the user has denied the permission
+    @OnPermissionDenied(Manifest.permission.ACCESS_FINE_LOCATION , Manifest.permission.ACCESS_COARSE_LOCATION)
+    fun onDeniedAskLocation() {
+        kuToast(getString(R.string.location_permission_denied))
+    }
+
+    // OnNeverAskAgain method is called if the user has denied the permission and checked "Never ask again"
+    @OnNeverAskAgain(Manifest.permission.ACCESS_FINE_LOCATION , Manifest.permission.ACCESS_COARSE_LOCATION)
+    fun onNeverAskLocation() {
+        val onApplicationSettings = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+        onApplicationSettings.data = Uri.parse("package:${requireActivity().packageName}")
+        setupLocationServiceResult.launch(onApplicationSettings)
+    }
+
+    @SuppressLint("NeedOnRequestPermissionsResult")
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        // NOTE: delegate the permission handling to generated function
+        onRequestPermissionsResult(requestCode, grantResults)
+    }
+
+
+    // Mark -*- handle Permissions
+
 
 
 }
