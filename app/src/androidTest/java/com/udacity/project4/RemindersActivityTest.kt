@@ -14,22 +14,31 @@ import androidx.test.espresso.assertion.ViewAssertions
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.RootMatchers.withDecorView
 import androidx.test.espresso.matcher.ViewMatchers.*
+import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
+import androidx.test.filters.SdkSuppress
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.UiDevice
 import com.udacity.project4.locationreminders.RemindersActivity
 import com.udacity.project4.locationreminders.data.ReminderDataSource
+import com.udacity.project4.locationreminders.data.dto.ReminderDTO
+import com.udacity.project4.locationreminders.data.dto.RemindersDTOMutableList
 import com.udacity.project4.locationreminders.data.local.LocalDB
 import com.udacity.project4.locationreminders.data.local.RemindersLocalRepository
+import com.udacity.project4.locationreminders.data.local.asReminderDTOMutableList
+import com.udacity.project4.locationreminders.data.local.fakeReminderData
 import com.udacity.project4.locationreminders.reminderslist.RemindersListViewModel
 import com.udacity.project4.locationreminders.savereminder.SaveReminderViewModel
+import com.udacity.project4.utils.DataBindingIdlingResource
 import com.udacity.project4.utils.EspressoIdlingResource
-import com.udacity.reminder.utils.DataBindingIdlingResource
-import com.udacity.reminder.utils.monitorActivity
+import com.udacity.project4.utils.monitorActivity
 import kotlinx.coroutines.runBlocking
 import org.hamcrest.CoreMatchers.`is`
 import org.hamcrest.Matchers
 import org.junit.After
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.koin.androidx.viewmodel.dsl.viewModel
@@ -41,15 +50,21 @@ import org.koin.test.get
 
 
 @RunWith(AndroidJUnit4::class)
+@SdkSuppress(minSdkVersion = 18)
 @LargeTest
 class RemindersActivityTest :
     AutoCloseKoinTest() {
 
     private lateinit var repository: ReminderDataSource
     private lateinit var context: Application
+    private lateinit var fakeList: RemindersDTOMutableList
+    private lateinit var device: UiDevice
 
     // An Idling Resource that waits for Data Binding to have no pending bindings
     private val dataBindingIdlingResource = DataBindingIdlingResource()
+
+    @get: Rule
+    var intentRule = ActivityScenarioRule(RemindersActivity::class.java)
 
     @Before
     fun init() {
@@ -66,6 +81,9 @@ class RemindersActivityTest :
         startKoin { modules(listOf(mModule)) }
         repository = get()
         runBlocking { repository.deleteAllReminders() }
+        // initialize fake data list
+        fakeList = fakeReminderData.asReminderDTOMutableList()
+
     }
 
     /**
@@ -76,6 +94,7 @@ class RemindersActivityTest :
     fun registerIdlingResource() {
         IdlingRegistry.getInstance().register(EspressoIdlingResource.countingIdlingResource)
         IdlingRegistry.getInstance().register(dataBindingIdlingResource)
+        device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
     }
 
     /**
@@ -85,6 +104,7 @@ class RemindersActivityTest :
     fun unregisterIdlingResource() {
         IdlingRegistry.getInstance().unregister(EspressoIdlingResource.countingIdlingResource)
         IdlingRegistry.getInstance().unregister(dataBindingIdlingResource)
+
     }
 
     private fun getActivity(activityScenario: ActivityScenario<RemindersActivity>): Activity {
@@ -98,8 +118,8 @@ class RemindersActivityTest :
     @Test
     fun saveReminderScreen_display_SnackBar_TitleError() {
 
-        val activityScenario = ActivityScenario.launch(RemindersActivity::class.java)
-        dataBindingIdlingResource.monitorActivity(activityScenario)
+//        val activityScenario = ActivityScenario.launch(RemindersActivity::class.java)
+        dataBindingIdlingResource.monitorActivity(intentRule.scenario)
 
         onView(withId(R.id.addReminderFAB)).perform(click())
         onView(withId(R.id.saveReminder)).perform(click())
@@ -108,7 +128,7 @@ class RemindersActivityTest :
         onView(withText(snackBarMessage))
             .check(matches(isDisplayed()))
 
-        activityScenario.close()
+        intentRule.scenario.close()
     }
 
     @Test

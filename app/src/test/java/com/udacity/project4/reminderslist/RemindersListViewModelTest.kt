@@ -3,15 +3,13 @@ package com.udacity.project4.reminderslist
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.google.common.truth.Truth
-import com.udacity.project4.MainCoroutineRule
+import androidx.test.filters.MediumTest
+import com.udacity.project4.utils.MainCoroutineRule
 import com.udacity.project4.data.FakeDataSource
-import com.udacity.project4.getOrAwaitValue
-import com.udacity.project4.locationreminders.data.dto.ReminderDTO
-import com.udacity.project4.locationreminders.data.dto.Reminders
-import com.udacity.project4.locationreminders.data.dto.RemindersMutableList
-import com.udacity.project4.locationreminders.data.dto.Result
-import com.udacity.project4.locationreminders.reminderslist.ReminderDataItem
+import com.udacity.project4.data.asReminderDTOMutableList
+import com.udacity.project4.data.fakeReminderData
+import com.udacity.project4.utils.getOrAwaitValue
+import com.udacity.project4.locationreminders.data.dto.RemindersDTOMutableList
 import com.udacity.project4.locationreminders.reminderslist.RemindersListViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.pauseDispatcher
@@ -19,23 +17,25 @@ import kotlinx.coroutines.test.resumeDispatcher
 import kotlinx.coroutines.test.runBlockingTest
 import org.hamcrest.CoreMatchers
 import org.hamcrest.MatcherAssert.assertThat
-import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.koin.core.context.stopKoin
+import org.robolectric.annotation.Config
 
-
+@Config(manifest = "AndroidManifest.xml")
 @RunWith(AndroidJUnit4::class)
 @ExperimentalCoroutinesApi
+@MediumTest
 class RemindersListViewModelTest {
 
     // Subject under test
     private lateinit var remindersListViewModelForTesting: RemindersListViewModel
     // Use a fake repository to be injected into the viewModel
     private lateinit var fakeDataSourceForTesting: FakeDataSource
-    private lateinit var remindersForTesting : RemindersMutableList
+    private lateinit var fakeList: RemindersDTOMutableList
+    private val nothing: Unit = Unit // Placeholder for empty test parameters.
 
 
     // Set the main coroutines dispatcher for unit testing.
@@ -47,89 +47,71 @@ class RemindersListViewModelTest {
 
     @Before
     fun setupViewModel() {
-        fakeDataSourceForTesting = FakeDataSource(arrayListOf())
-        remindersListViewModelForTesting = RemindersListViewModel(ApplicationProvider.getApplicationContext(),fakeDataSourceForTesting)
-    }
-
-    @After
-    fun cleanUp() {
         stopKoin()
+        fakeDataSourceForTesting = FakeDataSource()
+        remindersListViewModelForTesting = RemindersListViewModel(ApplicationProvider.getApplicationContext(),fakeDataSourceForTesting)
+        fakeList = fakeReminderData.asReminderDTOMutableList()
     }
 
+
     @Test
-    fun loadReminders_showLoading() {
-        mainCoroutineRuleTest.pauseDispatcher()
+    fun `nothing loadReminders showLoading`() = mainCoroutineRuleTest.runBlockingTest {
+        // Given
+        nothing
+        pauseDispatcher()
+        // When
         remindersListViewModelForTesting.loadReminders()
-        Truth.assertThat(remindersListViewModelForTesting.showLoading.getOrAwaitValue()).isTrue()
-        mainCoroutineRuleTest.resumeDispatcher()
-        Truth.assertThat(remindersListViewModelForTesting.showLoading.getOrAwaitValue()).isFalse()
-
+        // Then
+        assertThat(remindersListViewModelForTesting.showLoading.getOrAwaitValue(), CoreMatchers.`is`(true))
+        resumeDispatcher()
+        assertThat(remindersListViewModelForTesting.showLoading.getOrAwaitValue(), CoreMatchers.`is`(false))
     }
 
     @Test
-    fun loadReminders_remainderListNotEmpty() = mainCoroutineRuleTest.runBlockingTest {
-        remindersForTesting = mutableListOf(
-            ReminderDTO("Task NO.1", "description 1", "City ", 30.043457431, 31.2765762),
-            ReminderDTO("Task NO.2", "description 2", "City ", 30.043457431, 31.2765762),
-            ReminderDTO("Task NO.3", "description 3", "City ", 30.043457431, 31.2765762),
-            ReminderDTO("Task NO.4", "description 4", "City ", 30.043457431, 31.2765762),
-            ReminderDTO("Task NO.5", "description 5", "City ", 30.043457431, 31.2765762),
-            ReminderDTO("Task NO.6", "description 6", "City ", 30.043457431, 31.2765762)
-        )
-
-
-        fakeDataSourceForTesting.saveReminders(remindersForTesting)
+    fun `reminderList loadReminders checkListNotEmpty`() = runBlockingTest {
+        // Given
+        fakeList.forEach {
+            fakeDataSourceForTesting.saveReminder(it)
+        }
+        // When
         remindersListViewModelForTesting.loadReminders()
-
-        Truth.assertThat(remindersListViewModelForTesting.remindersList.getOrAwaitValue()).isNotEmpty()
+        // Then
+        val isNotEmptyList = fakeDataSourceForTesting.getCountList() >= 1
+        assertThat(isNotEmptyList, CoreMatchers.`is`(true))
     }
 
     @Test
-    fun loadReminderById_remainderNotEmpty() = mainCoroutineRuleTest.runBlockingTest {
-        remindersForTesting = mutableListOf(
-            ReminderDTO("Task NO.1", "description 1", "City ", 30.043457431, 31.2765762),
-            ReminderDTO("Task NO.2", "description 2", "City ", 30.043457431, 31.2765762),
-            ReminderDTO("Task NO.3", "description 3", "City ", 30.043457431, 31.2765762),
-            ReminderDTO("Task NO.4", "description 4", "City ", 30.043457431, 31.2765762),
-            ReminderDTO("Task NO.5", "description 5", "City ", 30.043457431, 31.2765762),
-            ReminderDTO("Task NO.6", "description 6", "City ", 30.043457431, 31.2765762)
-        )
-
-
-        fakeDataSourceForTesting.saveReminders(remindersForTesting)
-        val result = fakeDataSourceForTesting.getReminder(remindersForTesting[0].id)
-
-        assertThat(result is Result.Success, CoreMatchers.`is`(true))
-        result as Result.Success
-        Truth.assertThat(result.data).isNotNull()
-    }
-
-    @Test
-    fun loadReminderById_remainderEmpty() = mainCoroutineRuleTest.runBlockingTest {
-        remindersForTesting = mutableListOf(
-            ReminderDTO("Task NO.1", "description 1", "City ", 30.043457431, 31.2765762),
-            ReminderDTO("Task NO.2", "description 2", "City ", 30.043457431, 31.2765762),
-            ReminderDTO("Task NO.3", "description 3", "City ", 30.043457431, 31.2765762),
-            ReminderDTO("Task NO.4", "description 4", "City ", 30.043457431, 31.2765762),
-            ReminderDTO("Task NO.5", "description 5", "City ", 30.043457431, 31.2765762),
-            ReminderDTO("Task NO.6", "description 6", "City ", 30.043457431, 31.2765762)
-        )
-
-
-        fakeDataSourceForTesting.saveReminders(remindersForTesting)
-        val result = fakeDataSourceForTesting.getReminder("23334525")
-
-        assertThat(result is Result.Error, CoreMatchers.`is`(true))
-        result as Result.Error
-        assertThat(result.message, CoreMatchers.`is`("Reminder not found!"))
-    }
-
-    @Test
-    fun loadReminders_updateSnackBarValue() {
-        mainCoroutineRuleTest.pauseDispatcher()
-        fakeDataSourceForTesting.setCheckReturnError(true)
+    fun `emptyReminderList loadReminders checkListEmpty`() = runBlockingTest {
+        // Given
+        fakeDataSourceForTesting.deleteAllReminders()
+        // When
         remindersListViewModelForTesting.loadReminders()
-        mainCoroutineRuleTest.resumeDispatcher()
-        Truth.assertThat(remindersListViewModelForTesting.showSnackBar.getOrAwaitValue()).isEqualTo("Error  Can not get reminders")
+        // Then
+        assertThat(remindersListViewModelForTesting.showNoData.getOrAwaitValue(), CoreMatchers.`is`(true))
+    }
+
+
+    @Test
+    fun `ReminderList deleteReminder checkListEmpty`() = runBlockingTest {
+        // Given
+        fakeDataSourceForTesting.saveReminder(fakeList[0])
+        // When
+        fakeDataSourceForTesting.deleteReminder(fakeList[0].id)
+        // Then
+        remindersListViewModelForTesting.loadReminders()
+        val isEmptyList = fakeDataSourceForTesting.getCountList() == 0
+        assertThat(isEmptyList, CoreMatchers.`is`(true))
+    }
+
+
+    @Test
+    fun `reminderError loadReminders show error`() {
+        // Given
+        fakeDataSourceForTesting.setShouldReturnError(true)
+        // When
+        remindersListViewModelForTesting.loadReminders()
+        // Then
+        val reminderException = Exception("Reminder Exception!").toString()
+        assertThat(remindersListViewModelForTesting.showSnackBar.getOrAwaitValue(), CoreMatchers.`is`(reminderException))
     }
 }

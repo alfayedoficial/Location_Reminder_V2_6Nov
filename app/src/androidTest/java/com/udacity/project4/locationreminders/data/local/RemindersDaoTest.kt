@@ -3,25 +3,35 @@ package com.udacity.project4.locationreminders.data.local
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.espresso.matcher.ViewMatchers
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.udacity.project4.locationreminders.data.dto.ReminderDTO
+import com.udacity.project4.locationreminders.data.dto.RemindersDTOMutableList
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runBlockingTest
 import org.hamcrest.CoreMatchers
-import org.hamcrest.MatcherAssert
+import org.hamcrest.core.IsNull
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.runBlockingTest
 
+
+@Config(manifest = "src/main/AndroidManifest.xml")
 @ExperimentalCoroutinesApi
 @RunWith(AndroidJUnit4::class)
 @SmallTest
 class RemindersDaoTest {
 
     private lateinit var database: RemindersDatabase
+    private lateinit var reminderDao: RemindersDao
+    private lateinit var fakeList: RemindersDTOMutableList
+    private val nothing: Unit = Unit
 
     // Executes each task synchronously using Architecture Components.
     @get:Rule
@@ -34,77 +44,103 @@ class RemindersDaoTest {
         database = Room.inMemoryDatabaseBuilder(
             ApplicationProvider.getApplicationContext(),
             RemindersDatabase::class.java
-        ).build()
+        ).allowMainThreadQueries().build()
+        reminderDao = database.reminderDao()
+        fakeList = fakeReminderData.asReminderDTOMutableList()
+    }
+
+
+    @Test
+    fun nothing_getCount_checkCountListIsZero() = runBlockingTest {
+        // Given
+        nothing
+        // When
+        val countList = reminderDao.getCountList()
+        // Then
+        ViewMatchers.assertThat(countList, CoreMatchers.`is`(0))
+    }
+
+    @Test
+    fun reminder_saveReminder_checkCountListIsChanged() = runBlockingTest {
+        // Given
+        val reminder = fakeList[0]
+        val oldCount = reminderDao.getCountList()
+        // When
+        reminderDao.saveReminder(reminder)
+        // Then
+        val newCount = reminderDao.getCountList()
+        ViewMatchers.assertThat(oldCount, CoreMatchers.`is`(0))
+        ViewMatchers.assertThat(newCount, CoreMatchers.`is`(1))
+    }
+
+    @Test
+    fun reminder_deleteReminderById_checkCountListIsChanged() = runBlockingTest {
+        // Given
+        val reminder = fakeList[0]
+        reminderDao.saveReminder(reminder)
+        val oldCount = reminderDao.getCountList()
+        // When
+        reminderDao.deleteReminder(reminder.id)
+        // Then
+        val newCount = reminderDao.getCountList()
+        ViewMatchers.assertThat(oldCount, CoreMatchers.`is`(1))
+        ViewMatchers.assertThat(newCount, CoreMatchers.`is`(0))
+    }
+
+    @Test
+    fun remindersList_deleteAlReminders_checkCountListIsZero() = runBlockingTest {
+        // Given
+        fakeList.forEach { reminderDao.saveReminder(it) }
+        val oldCount = reminderDao.getCountList()
+        // When
+        reminderDao.deleteAllReminders()
+        // Then
+        val newCount = reminderDao.getCountList()
+        ViewMatchers.assertThat(oldCount, CoreMatchers.`is`(9))
+        ViewMatchers.assertThat(newCount, CoreMatchers.`is`(0))
+    }
+
+    @Test
+    fun reminder_getReminderById_ReminderIsValid() = runBlockingTest {
+        // Given
+        reminderDao.saveReminder(fakeList[0])
+        // When
+        val retrievedReminder = reminderDao.getReminderById(fakeList[0].id)
+        // Then
+        ViewMatchers.assertThat(retrievedReminder as ReminderDTO, IsNull.notNullValue())
+        ViewMatchers.assertThat(retrievedReminder.id, CoreMatchers.`is`(fakeList[0].id))
+        ViewMatchers.assertThat(retrievedReminder.title, CoreMatchers.`is`(fakeList[0].title))
+        ViewMatchers.assertThat(retrievedReminder.description, CoreMatchers.`is`(fakeList[0].description))
+        ViewMatchers.assertThat(retrievedReminder.location, CoreMatchers.`is`(fakeList[0].location))
+        ViewMatchers.assertThat(retrievedReminder.latitude, CoreMatchers.`is`(fakeList[0].latitude))
+        ViewMatchers.assertThat(retrievedReminder.longitude, CoreMatchers.`is`(fakeList[0].longitude))
+    }
+
+    @Test
+    fun reminders_getReminders_validateReminders() = runBlockingTest {
+        // Given
+        fakeList.forEach { reminderDao.saveReminder(it) }
+        // When
+        val retrievedRemindersFromRoom = reminderDao.getReminders()
+        // Then
+        val listValidated = retrievedRemindersFromRoom.containsAll(fakeList)
+        ViewMatchers.assertThat(listValidated, CoreMatchers.`is`(true))
+    }
+
+    @Test
+    fun reminder_saveReminder_confirmReminderUpdated() = runBlockingTest {
+        // Given
+        fakeList.forEach { reminderDao.saveReminder(it) }
+        val reminderToEdit = reminderDao.getReminders()[1]
+        val newDescription = "description 2 edited"
+        // When
+        reminderToEdit.description = newDescription
+        reminderDao.saveReminder(reminderToEdit)
+        // Then
+        val updatedReminder = reminderDao.getReminderById(reminderToEdit.id)
+        ViewMatchers.assertThat(updatedReminder?.description, CoreMatchers.`is`(newDescription))
     }
 
     @After
     fun closeDb() = database.close()
-
-    @Test
-    fun saveReminderAndGetById() = runBlockingTest {
-        // GIVEN - save a reminder
-        val reminder = ReminderDTO("Task NO.1", "description 1", "City ", 30.043457431, 31.2765762)
-        val reminder2 =ReminderDTO("Task NO.2", "description 2", "City ", 30.043457431, 31.2765762)
-        val reminder3 =ReminderDTO("Task NO.3", "description 3", "City ", 30.043457431, 31.2765762)
-
-        database.reminderDao().apply {
-            saveReminder(reminder)
-            saveReminder(reminder2)
-            saveReminder(reminder3)
-        }
-        // WHEN - Get the reminder by id from the database
-        val result = database.reminderDao().getReminderById(reminder.id)
-
-        // THEN - the retrieved reminder contains the expected values
-        MatcherAssert.assertThat(result as ReminderDTO, CoreMatchers.notNullValue())
-        MatcherAssert.assertThat(result.id, CoreMatchers.`is`(reminder.id))
-        MatcherAssert.assertThat(result.title, CoreMatchers.`is`(reminder.title))
-        MatcherAssert.assertThat(result.description, CoreMatchers.`is`(reminder.description))
-        MatcherAssert.assertThat(result.location, CoreMatchers.`is`(reminder.location))
-        MatcherAssert.assertThat(result.latitude, CoreMatchers.`is`(reminder.latitude))
-        MatcherAssert.assertThat(result.longitude, CoreMatchers.`is`(reminder.longitude))
-
-    }
-
-    @Test
-    fun getAllRemindersFromDb() = runBlockingTest {
-        // GIVEN - save a few reminders to the database
-        val reminder = ReminderDTO("Task NO.1", "description 1", "City ", 30.043457431, 31.2765762)
-        val reminder2 =ReminderDTO("Task NO.2", "description 2", "City ", 30.043457431, 31.2765762)
-        val reminder3 =ReminderDTO("Task NO.3", "description 3", "City ", 30.043457431, 31.2765762)
-
-        database.reminderDao().apply {
-            saveReminder(reminder)
-            saveReminder(reminder2)
-            saveReminder(reminder3)
-        }
-
-        // WHEN - Retrieving the reminders from the database
-        val remindersList = database.reminderDao().getReminders()
-
-        // THEN - the retrieved list of reminders is not null
-        MatcherAssert.assertThat(remindersList, CoreMatchers.`is`(CoreMatchers.notNullValue()))
-    }
-
-    @Test
-    fun insertRemindersAndDeleteAllReminders() = runBlockingTest {
-        // GIVEN - save a few reminders to the database
-        val reminder = ReminderDTO("Task NO.1", "description 1", "City ", 30.043457431, 31.2765762)
-        val reminder2 =ReminderDTO("Task NO.2", "description 2", "City ", 30.043457431, 31.2765762)
-        val reminder3 =ReminderDTO("Task NO.3", "description 3", "City ", 30.043457431, 31.2765762)
-
-        database.reminderDao().apply {
-            saveReminder(reminder)
-            saveReminder(reminder2)
-            saveReminder(reminder3)
-        }
-
-        // WHEN - Deleting the reminders from the database
-        database.reminderDao().deleteAllReminders()
-
-        val remindersList = database.reminderDao().getReminders()
-
-        // THEN - the retrieved list of reminders is empty
-        MatcherAssert.assertThat(remindersList, CoreMatchers.`is`(emptyList()))
-    }
 }

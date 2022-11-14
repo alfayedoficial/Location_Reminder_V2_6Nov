@@ -8,6 +8,7 @@ import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.databinding.DataBindingUtil
+import com.alfayedoficial.kotlinutils.kuShow
 import com.alfayedoficial.kotlinutils.kuToast
 import com.google.android.gms.location.GeofencingClient
 import com.google.android.gms.location.LocationServices
@@ -19,14 +20,16 @@ import com.google.android.gms.maps.model.*
 import com.udacity.project4.R
 import com.udacity.project4.databinding.ActivityReminderDescriptionBinding
 import com.udacity.project4.locationreminders.reminderslist.ReminderDataItem
+import com.udacity.project4.locationreminders.reminderslist.RemindersListViewModel
 import com.udacity.project4.utils.AppConstant
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 /**
  * Activity that displays the reminder details after the user clicks on the notification
  */
 class ReminderDescriptionActivity : AppCompatActivity() {
 
-
+    val mViewModel: RemindersListViewModel by viewModel()
     private lateinit var binding: ActivityReminderDescriptionBinding
     private val geofencingClient: GeofencingClient by lazy { LocationServices.getGeofencingClient(this) }
     private lateinit var mGoogleMap: GoogleMap
@@ -75,18 +78,26 @@ class ReminderDescriptionActivity : AppCompatActivity() {
         binding = ActivityReminderDescriptionBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        (intent.getSerializableExtra(AppConstant.EXTRA_ReminderDataItem) as? ReminderDataItem?)?.let {
-            userLocation = LatLng(it.latitude!!,it.longitude!!)
+        (intent.getSerializableExtra(AppConstant.EXTRA_ReminderDataItem) as? ReminderDataItem?)?.let { item ->
+            userLocation = LatLng(item.latitude!!,item.longitude!!)
             val mapFragment = supportFragmentManager.findFragmentById(R.id.map) as SupportMapFragment
             mapFragment.getMapAsync(callback)
-            binding.reminderDataItem = it
-            geofencingClient.removeGeofences(listOf(it.id)).addOnCompleteListener { task ->
-                if (task.isSuccessful){
-                    kuToast("Remove Geofence Successfully")
-                }else{
-                    kuToast("Remove Geofence Failed")
+            binding.reminderDataItem = item
+
+            binding.delete.kuShow()
+            binding.delete.setOnClickListener {
+                mViewModel.deleteReminder(item.id)
+                geofencingClient.removeGeofences(listOf(item.id)).addOnCompleteListener { task ->
+                    if (task.isSuccessful){
+                        kuToast("Remove Geofence Successfully")
+                    }else{
+                        kuToast("Remove Geofence Failed")
+                    }
                 }
+                finish()
             }
+
         }
     }
+
 }

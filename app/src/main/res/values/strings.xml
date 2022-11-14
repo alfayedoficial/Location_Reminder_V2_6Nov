@@ -60,4 +60,15 @@
     <string name="title">reminder title …</string>
     <string name="description">description</string>
 
+    <string name="snack_permission_denied_explanation">You need to grant location permissions in order to select the location.</string>
+    <string name="toast_select_location">Please select a location or point of interest.</string>
+    <string name="error_last_location_null">We were unable to automatically retrieve your location. This can happen if you\'ve recently disabled location services. \n\nPlease tap the location button to try again.</string>
+    <string name="marker_title_dropped_pin">Dropped Pin</string>
+    <string name="toast_select_window">Select the marker\'s information window for additional options.</string>
+    <string name="alert_add_location">Add</string>
+    <string name="alert_delete_location">Delete</string>
+    <string name="alert_cancel_dialog">Cancel</string>
+    <string name="alert_prompt_for_option">What would you like to do with this location?</string>
+    <string name="delete">Delete</string>
+
 </resources>

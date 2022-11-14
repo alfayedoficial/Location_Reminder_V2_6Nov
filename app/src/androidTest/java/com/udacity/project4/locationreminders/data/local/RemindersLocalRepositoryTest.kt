@@ -3,7 +3,9 @@ package com.udacity.project4.locationreminders.data.local
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.espresso.matcher.ViewMatchers
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.filters.MediumTest
 import com.udacity.project4.locationreminders.data.dto.ReminderDTO
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -16,19 +18,23 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import com.udacity.project4.locationreminders.data.dto.Result
+import kotlinx.coroutines.test.runBlockingTest
+import org.hamcrest.CoreMatchers
+import org.hamcrest.core.IsNull
 
 @ExperimentalCoroutinesApi
 @RunWith(AndroidJUnit4::class)
+@MediumTest
 class RemindersLocalRepositoryTest {
 
     private lateinit var remindersLocalRepository: RemindersLocalRepository
-
+    private lateinit var fakeList: MutableList<ReminderDTO>
     private lateinit var database: RemindersDatabase
+    private val nothing: Unit = Unit
 
     @get:Rule
     var instantExecutorRule = InstantTaskExecutorRule()
 
-    private val reminderItemForTesting: ReminderDTO by lazy {  ReminderDTO("Task NO.1", "description 1", "City ", 30.043457431, 31.2765762) }
 
     @Before
     fun setup() {
@@ -39,10 +45,114 @@ class RemindersLocalRepositoryTest {
             RemindersDatabase::class.java
         ).allowMainThreadQueries().build()
 
-        remindersLocalRepository = RemindersLocalRepository(
-            database.reminderDao(),
-            Dispatchers.Main
-        )
+        remindersLocalRepository = RemindersLocalRepository(database.reminderDao(), Dispatchers.Main)
+        fakeList = fakeReminderData.asReminderDTOMutableList()
+
+    }
+
+    @Test
+    fun nothing_getCount_checkCountListIsZero() = runBlocking {
+        // Given
+        nothing
+        // When
+        val countList = remindersLocalRepository.getCountList()
+        // Then
+        ViewMatchers.assertThat(countList, `is`(0))
+    }
+
+    @Test
+    fun reminder_saveReminder_checkCountListIsChanged() = runBlocking {
+        // Given
+        val reminder = fakeList[0]
+        val oldCount = remindersLocalRepository.getCountList()
+        // When
+        remindersLocalRepository.saveReminder(reminder)
+        // Then
+        val newCount = remindersLocalRepository.getCountList()
+        ViewMatchers.assertThat(oldCount, `is`(0))
+        ViewMatchers.assertThat(newCount, `is`(1))
+    }
+
+    @Test
+    fun reminder_deleteReminderById_checkCountListIsChanged() = runBlocking {
+        // Given
+        val reminder = fakeList[0]
+        remindersLocalRepository.saveReminder(reminder)
+        val oldCount = remindersLocalRepository.getCountList()
+        // When
+        remindersLocalRepository.deleteReminder(reminder.id)
+        // Then
+        val newCount = remindersLocalRepository.getCountList()
+        ViewMatchers.assertThat(oldCount, `is`(1))
+        ViewMatchers.assertThat(newCount, `is`(0))
+    }
+
+    @Test
+    fun remindersList_deleteAlReminders_checkCountListIsZero() = runBlocking {
+        // Given
+        fakeList.forEach { remindersLocalRepository.saveReminder(it) }
+        val oldCount = remindersLocalRepository.getCountList()
+        // When
+        remindersLocalRepository.deleteAllReminders()
+        // Then
+        val newCount = remindersLocalRepository.getCountList()
+        ViewMatchers.assertThat(oldCount, `is`(9))
+        ViewMatchers.assertThat(newCount, `is`(0))
+    }
+
+    @Test
+    fun reminder_getReminderById_ReminderIsValid() = runBlocking {
+        // Given
+        remindersLocalRepository.saveReminder(fakeList[0])
+        // When
+        val retrievedReminder = remindersLocalRepository.getReminder(fakeList[0].id)
+        // Then
+        ViewMatchers.assertThat(retrievedReminder.succeeded, `is`(true))
+        ViewMatchers.assertThat(retrievedReminder as ReminderDTO, IsNull.notNullValue())
+        ViewMatchers.assertThat(retrievedReminder.id, `is`(fakeList[0].id))
+        ViewMatchers.assertThat(retrievedReminder.title, `is`(fakeList[0].title))
+        ViewMatchers.assertThat(retrievedReminder.description, `is`(fakeList[0].description))
+        ViewMatchers.assertThat(retrievedReminder.location, `is`(fakeList[0].location))
+        ViewMatchers.assertThat(retrievedReminder.latitude, `is`(fakeList[0].latitude))
+        ViewMatchers.assertThat(retrievedReminder.longitude, `is`(fakeList[0].longitude))
+    }
+
+    @Test
+    fun nothing_getReminder_returnError() = runBlocking {
+        // Given
+        nothing
+        // When
+        val retrievedResult = remindersLocalRepository.getReminder(fakeList[0].id)
+        // Then
+        ViewMatchers.assertThat(retrievedResult.error, `is`(true))
+        val errorMessage = (retrievedResult as Result.Error).message
+        ViewMatchers.assertThat(errorMessage, `is`("Reminder not found!"))
+    }
+
+    @Test
+    fun remindersList_getReminders_RemindersIsValid() = runBlocking {
+        // Given
+        fakeList.forEach { remindersLocalRepository.saveReminder(it) }
+        // When
+        val retrievedResult = remindersLocalRepository.getReminders()
+        // Then
+        ViewMatchers.assertThat(retrievedResult.succeeded, `is`(true))
+        val retrievedRemindersList = (retrievedResult as Result.Success<List<ReminderDTO>>).data
+        val listValidated = retrievedRemindersList!!.containsAll(fakeList)
+        ViewMatchers.assertThat(listValidated, `is`(true))
+    }
+
+    @Test
+    fun remindersList_getReminders_confirmEmptyList() = runBlocking {
+        // Given
+        nothing
+        // When
+        val retrievedResult = remindersLocalRepository.getReminders()
+        // Then
+        ViewMatchers.assertThat(retrievedResult.succeeded, `is`(true))
+        val retrievedReminders = (retrievedResult as Result.Success<List<ReminderDTO>>).data
+        val listEmpty = retrievedReminders!!.isEmpty()
+        ViewMatchers.assertThat(listEmpty, `is`(true))
     }
 
     @After
@@ -50,50 +160,6 @@ class RemindersLocalRepositoryTest {
         database.close()
     }
 
-    @Test
-    fun saveReminder_retrieveReminderById() = runBlocking {
-
-        remindersLocalRepository.saveReminder(reminderItemForTesting)
-
-        val result = remindersLocalRepository.getReminder(reminderItemForTesting.id) as? Result.Success
-
-        assertThat(result is Result.Success, `is`(true))
-        result as Result.Success
-
-
-        assertThat(result.data?.title, `is`(reminderItemForTesting.title))
-        assertThat(result.data?.description, `is`(reminderItemForTesting.description))
-        assertThat(result.data?.latitude, `is`(reminderItemForTesting.latitude))
-        assertThat(result.data?.longitude, `is`(reminderItemForTesting.longitude))
-        assertThat(result.data?.location, `is`(reminderItemForTesting.location))
-    }
-
-
-    @Test
-    fun deleteReminders_EmptyList()= runBlocking {
-
-        remindersLocalRepository.saveReminder(reminderItemForTesting)
-        remindersLocalRepository.deleteAllReminders()
-
-        val result = remindersLocalRepository.getReminders()
-
-        assertThat(result is Result.Success, `is`(true))
-        result as Result.Success
-
-        assertThat(result.data, `is` (emptyList()))
-    }
-
-    @Test
-    fun retrieveReminderById_ReturnError() = runBlocking {
-
-        remindersLocalRepository.saveReminder(reminderItemForTesting)
-        remindersLocalRepository.deleteAllReminders()
-        val result = remindersLocalRepository.getReminder(reminderItemForTesting.id)
-
-        assertThat(result is Result.Error, `is`(true))
-        result as Result.Error
-        assertThat(result.message, `is`("Reminder not found!"))
-    }
 
     
     

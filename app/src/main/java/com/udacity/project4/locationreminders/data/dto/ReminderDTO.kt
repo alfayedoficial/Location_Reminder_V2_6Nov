@@ -27,4 +27,4 @@ data class ReminderDTO(
 )
 
 typealias Reminders = List<ReminderDTO>
-typealias RemindersMutableList = MutableList<ReminderDTO>
+typealias RemindersDTOMutableList = MutableList<ReminderDTO>

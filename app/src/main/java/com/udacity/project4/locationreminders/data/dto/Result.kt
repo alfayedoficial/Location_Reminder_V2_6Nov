@@ -9,4 +9,16 @@ sealed class Result<out T : Any> {
     data class Success<out T : Any>(val data: T?) : Result<T>()
     data class Error(val message: String?, val statusCode: Int? = null) :
         Result<Nothing>()
+
+    /**
+     * Returns true if the [Result] is of type [Success].
+     */
+    val succeeded
+        get() = this is Success
+
+    /**
+     * Returns true if the [Result] is of type [Error].
+     */
+    val error
+        get() = this is Error
 }

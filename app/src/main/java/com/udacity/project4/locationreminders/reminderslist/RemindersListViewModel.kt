@@ -61,6 +61,15 @@ class RemindersListViewModel(
     }
 
     /**
+     * Deletes a reminder from the database using the given ID.
+     */
+    fun deleteReminder(id: String) {
+        viewModelScope.launch {
+            dataSource.deleteReminder(id)
+        }
+    }
+
+    /**
      * Inform the user that there's not any data if the remindersList is empty
      */
     private fun invalidateShowNoData() {

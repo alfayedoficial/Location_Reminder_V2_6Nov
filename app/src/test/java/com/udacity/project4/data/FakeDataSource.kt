@@ -2,61 +2,61 @@ package com.udacity.project4.data
 
 import com.udacity.project4.locationreminders.data.ReminderDataSource
 import com.udacity.project4.locationreminders.data.dto.ReminderDTO
-import com.udacity.project4.locationreminders.data.dto.Reminders
-import com.udacity.project4.locationreminders.data.dto.RemindersMutableList
 import com.udacity.project4.locationreminders.data.dto.Result
 
-//Use FakeDataSource that acts as a test double to the LocalDataSource
-class FakeDataSource(var fakeList: RemindersMutableList? = mutableListOf()) : ReminderDataSource {
+/**
+ * A fake data source that acts as a test double to the local data source.
+ */
+class FakeDataSource : ReminderDataSource {
 
-    private var statusError = false
-
-    fun setCheckReturnError(statusError :Boolean) {
-        this.statusError = statusError
-    }
-
-    override suspend fun getReminders(): Result<Reminders> {
-        return if (statusError) {
-            Result.Error("Error  Can not get reminders")
-        } else {
-            if (fakeList.isNullOrEmpty()) {
-                Result.Error("Error  Can not get reminders")
-            } else {
-                Result.Success(fakeList)
-            }
-        }
-    }
-
-    override suspend fun saveReminders(reminders: RemindersMutableList) {
-        fakeList?.addAll(reminders)
-    }
-
+    private var fakeList: MutableList<ReminderDTO>? = mutableListOf()
+    private var shouldReturnError: Boolean = false
 
     override suspend fun saveReminder(reminder: ReminderDTO) {
         fakeList?.add(reminder)
     }
 
-    override suspend fun getReminder(id: String): Result<ReminderDTO>{
-        val reminder = fakeList?.find { reminderDTO ->
-            reminderDTO.id == id
+    override suspend fun getReminder(id: String): Result<ReminderDTO> {
+        if (shouldReturnError) {
+            return Result.Error(Exception("Reminder Exception!").toString())
         }
-
-        return when {
-            statusError -> {
-                Result.Error("Reminder not found!")
-            }
-
-            reminder != null -> {
-                Result.Success(reminder)
-            }
-            else -> {
-                Result.Error("Reminder not found!")
+        fakeList?.let { fakeList ->
+            for (reminder in fakeList) {
+                if (reminder.id == id) {
+                    return Result.Success(reminder)
+                }
             }
         }
+        return Result.Error(Exception("Reminder not found!").toString())
+    }
+
+
+    override suspend fun getReminders(): Result<List<ReminderDTO>> {
+        if (shouldReturnError) {
+            return Result.Error(Exception("Reminder Exception!").toString())
+        }
+        return Result.Success(ArrayList(fakeList!!))
     }
 
     override suspend fun deleteAllReminders() {
         fakeList?.clear()
     }
 
+    override suspend fun deleteReminder(id: String) {
+        fakeList?.let { reminders ->
+            reminders.removeIf { reminder -> (reminder.id == id) }
+        }
+    }
+
+    override suspend fun getCountList(): Int {
+        return fakeList!!.size
+    }
+
+
+    /**
+     * Uses the given [Boolean] to specify if an error should be returned.
+     */
+    fun setShouldReturnError(returnError: Boolean) {
+        shouldReturnError = returnError
+    }
 }
